@@ -50,13 +50,6 @@ poetry.lock
 *.sqlite
 *.log
 
-# TIFF and image outputs
-*.tif
-*.tiff
-*.jpg
-*.jpeg
-*.png
-
 # OS
 .DS_Store
 Thumbs.db
