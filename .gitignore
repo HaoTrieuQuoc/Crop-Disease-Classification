@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Streamlit cache
+.streamlit/
+
+# Environment
+.env
+.venv/
+env/
+venv/
+ENV/
+Pipfile.lock
+poetry.lock
+
+# Data/model files
+*.pt
+*.pth
+*.h5
+*.ckpt
+*.tflite
+*.onnx
+*.pb
+*.npz
+*.npy
+*.csv
+*.xlsx
+*.xls
+*.db
+*.sqlite
+*.log
+
+# TIFF and image outputs
+*.tif
+*.tiff
+*.jpg
+*.jpeg
+*.png
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup files
+*~
+*.bak
