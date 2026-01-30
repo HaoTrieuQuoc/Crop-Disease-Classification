@@ -54,7 +54,13 @@ IMG_SIZE = 224
 HS_IN_CH = 101
 MS_IN_CH = 5
 
-st.title("🌿 Multimodal Crop Disease Classification")
+st.title("Multimodal Crop Disease Classification")
+
+# ================= SESSION STATE =================
+if "resnet_result" not in st.session_state:
+    st.session_state["resnet_result"] = None
+if "vit_result" not in st.session_state:
+    st.session_state["vit_result"] = None
 
 # ================= LOAD MODEL =================
 @st.cache_resource
@@ -172,7 +178,7 @@ def plot_prob_bar(prob_dict):
     st.altair_chart((bar + text), use_container_width=True)
 
 # ================= INPUT =================
-st.subheader("📥 Upload Images (Single Sample)")
+st.subheader("Upload Images (Single Sample)")
 
 col1, col2, col3 = st.columns(3)
 
@@ -191,47 +197,52 @@ col_r, col_v = st.columns(2)
 # --- ResNet Prediction ---
 with col_r:
     st.markdown("<div class='model-box'>", unsafe_allow_html=True)
-    st.markdown("<div class='model-title'>🧠 ResNet Multimodal</div>", unsafe_allow_html=True)
+    st.markdown("<div class='model-title'>ResNet Multimodal</div>", unsafe_allow_html=True)
     
-    if st.button("🔮 Predict ResNet", type="primary"):
+    if st.button("Predict ResNet", type="primary"):
         if not (rgb_file or ms_file or hs_file):
-            st.warning("⚠️ Please upload at least one image.")
+            st.warning("Please upload at least one image.")
         else:
             with st.spinner("Processing ResNet..."):
-                res_resnet = predict_multimodal(resnet_model, rgb_file, ms_file, hs_file)
+                st.session_state["resnet_result"] = predict_multimodal(resnet_model, rgb_file, ms_file, hs_file)
             
-            st.markdown(
-                f"""
-                <div class="result-box">
-                    <div class="pred-title">Input: {res_resnet['modalities']}</div>
-                    🌱 <b>Prediction:</b> {res_resnet['prediction']}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-            plot_prob_bar(res_resnet["prob"])
+    if st.session_state["resnet_result"] is not None:
+        res_resnet = st.session_state["resnet_result"]
+        st.markdown(
+            f"""
+            <div class="result-box">
+                <div class="pred-title">Input: {res_resnet['modalities']}</div>
+                <b>Prediction:</b> {res_resnet['prediction']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        plot_prob_bar(res_resnet["prob"])
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- ViT Prediction ---
 with col_v:
     st.markdown("<div class='model-box'>", unsafe_allow_html=True)
-    st.markdown("<div class='model-title'>🤖 ViT Multimodal</div>", unsafe_allow_html=True)
+    st.markdown("<div class='model-title'>ViT Multimodal</div>", unsafe_allow_html=True)
     
-    if st.button("🔮 Predict ViT", type="primary"):
+    if st.button("Predict ViT", type="primary"):
         if not (rgb_file or ms_file or hs_file):
-            st.warning("⚠️ Please upload at least one image.")
+            st.warning("Please upload at least one image.")
         else:
             with st.spinner("Processing ViT..."):
-                res_vit = predict_multimodal(vit_model, rgb_file, ms_file, hs_file)
+                st.session_state["vit_result"] = predict_multimodal(vit_model, rgb_file, ms_file, hs_file)
             
-            st.markdown(
-                f"""
-                <div class="result-box">
-                    <div class="pred-title">Input: {res_vit['modalities']}</div>
-                    🌱 <b>Prediction:</b> {res_vit['prediction']}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-            plot_prob_bar(res_vit["prob"])
+    if st.session_state["vit_result"] is not None:
+        res_vit = st.session_state["vit_result"]
+        st.markdown(
+            f"""
+            <div class="result-box">
+                <div class="pred-title">Input: {res_vit['modalities']}</div>
+                <b>Prediction:</b> {res_vit['prediction']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        plot_prob_bar(res_vit["prob"])
     st.markdown("</div>", unsafe_allow_html=True)
