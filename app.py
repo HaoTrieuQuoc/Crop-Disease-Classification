@@ -56,13 +56,6 @@ MS_IN_CH = 5
 
 st.title("🌿 Multimodal Crop Disease Classification")
 
-# ================= SESSION STATE =================
-if "resnet_results" not in st.session_state:
-    st.session_state.resnet_results = []
-
-if "vit_results" not in st.session_state:
-    st.session_state.vit_results = []
-
 # ================= LOAD MODEL =================
 @st.cache_resource
 def load_model(path, backbone):
@@ -87,12 +80,16 @@ vit_model    = load_model(VIT_PATH, "vit")
 
 # ================= LOAD INPUT =================
 def load_rgb(file):
+    # Fix: Reset pointer to beginning before reading
+    file.seek(0)
     img = Image.open(file).convert("RGB").resize((IMG_SIZE, IMG_SIZE))
     arr = np.array(img).astype(np.float32) / 255.0
     arr = np.transpose(arr, (2, 0, 1))
     return torch.tensor(arr).unsqueeze(0)
 
 def load_spectral(file, channels):
+    # Fix: Reset pointer to beginning before reading
+    file.seek(0)
     img = tiff.imread(file).astype(np.float32)
     if img.ndim == 3:
         img = np.transpose(img, (2, 0, 1))
@@ -100,28 +97,42 @@ def load_spectral(file, channels):
     return torch.tensor(img).unsqueeze(0)
 
 # ================= PREDICT =================
-def predict_single_modal(model, modal, file):
+def predict_multimodal(model, rgb_file, ms_file, hs_file):
     with torch.no_grad():
+        # 1. Initialize empty tensors (zeros)
         rgb = torch.zeros(1, 3, IMG_SIZE, IMG_SIZE).to(DEVICE)
         ms  = torch.zeros(1, MS_IN_CH, IMG_SIZE, IMG_SIZE).to(DEVICE)
         hs  = torch.zeros(1, HS_IN_CH, IMG_SIZE, IMG_SIZE).to(DEVICE)
+        
+        # Initialize mask [RGB, MS, HS] to all zeros
+        mask_val = [0, 0, 0]
+        modalities_used = []
 
-        if modal == "RGB":
-            rgb = load_rgb(file).to(DEVICE)
-            mask = torch.tensor([[1, 0, 0]], dtype=torch.float32).to(DEVICE)
-        elif modal == "MS":
-            ms = load_spectral(file, MS_IN_CH).to(DEVICE)
-            mask = torch.tensor([[0, 1, 0]], dtype=torch.float32).to(DEVICE)
-        else:
-            hs = load_spectral(file, HS_IN_CH).to(DEVICE)
-            mask = torch.tensor([[0, 0, 1]], dtype=torch.float32).to(DEVICE)
+        # 2. Load inputs if present
+        if rgb_file is not None:
+            rgb = load_rgb(rgb_file).to(DEVICE)
+            mask_val[0] = 1
+            modalities_used.append("RGB")
+        
+        if ms_file is not None:
+            ms = load_spectral(ms_file, MS_IN_CH).to(DEVICE)
+            mask_val[1] = 1
+            modalities_used.append("MS")
+            
+        if hs_file is not None:
+            hs = load_spectral(hs_file, HS_IN_CH).to(DEVICE)
+            mask_val[2] = 1
+            modalities_used.append("HS")
 
+        # Create mask tensor
+        mask = torch.tensor([mask_val], dtype=torch.float32).to(DEVICE)
+
+        # 3. Model Inference
         out = model(rgb, ms, hs, mask)
         prob = torch.softmax(out, dim=1)[0].cpu().numpy()
 
         return {
-            "modal": modal,
-            "filename": file.name,
+            "modalities": "+".join(modalities_used),
             "prediction": CLASSES[np.argmax(prob)],
             "prob": dict(zip(CLASSES, prob))
         }
@@ -161,56 +172,66 @@ def plot_prob_bar(prob_dict):
     st.altair_chart((bar + text), use_container_width=True)
 
 # ================= INPUT =================
-st.subheader("📥 Upload Images")
+st.subheader("📥 Upload Images (Single Sample)")
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    rgb_files = st.file_uploader("RGB images", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
+    rgb_file = st.file_uploader("RGB Image", type=["jpg", "png", "jpeg"], accept_multiple_files=False)
 
 with col2:
-    ms_files = st.file_uploader("MS images", type=["tif", "tiff", "png", "jpg"], accept_multiple_files=True)
+    ms_file = st.file_uploader("MS Image", type=["tif", "tiff", "png", "jpg"], accept_multiple_files=False)
 
 with col3:
-    hs_files = st.file_uploader("HS images", type=["tif", "tiff"], accept_multiple_files=True)
+    hs_file = st.file_uploader("HS Image", type=["tif", "tiff"], accept_multiple_files=False)
 
 # ================= INFERENCE =================
 col_r, col_v = st.columns(2)
 
-def run_model(model, model_name, store_key):
-    if st.button(f"🔮 Predict with {model_name}"):
-        results = []
-        for f in rgb_files or []:
-            results.append(predict_single_modal(model, "RGB", f))
-        for f in ms_files or []:
-            results.append(predict_single_modal(model, "MS", f))
-        for f in hs_files or []:
-            results.append(predict_single_modal(model, "HS", f))
-        st.session_state[store_key] = results
-
-def render_results(results):
-    for r in results:
-        st.markdown(
-            f"""
-            <div class="result-box">
-                <div class="pred-title">{r['modal']} — {r['filename']}</div>
-                🌱 <b>Prediction:</b> {r['prediction']}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        plot_prob_bar(r["prob"])
-
+# --- ResNet Prediction ---
 with col_r:
     st.markdown("<div class='model-box'>", unsafe_allow_html=True)
     st.markdown("<div class='model-title'>🧠 ResNet Multimodal</div>", unsafe_allow_html=True)
-    run_model(resnet_model, "ResNet", "resnet_results")
-    render_results(st.session_state.resnet_results)
+    
+    if st.button("🔮 Predict ResNet", type="primary"):
+        if not (rgb_file or ms_file or hs_file):
+            st.warning("⚠️ Please upload at least one image.")
+        else:
+            with st.spinner("Processing ResNet..."):
+                res_resnet = predict_multimodal(resnet_model, rgb_file, ms_file, hs_file)
+            
+            st.markdown(
+                f"""
+                <div class="result-box">
+                    <div class="pred-title">Input: {res_resnet['modalities']}</div>
+                    🌱 <b>Prediction:</b> {res_resnet['prediction']}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            plot_prob_bar(res_resnet["prob"])
     st.markdown("</div>", unsafe_allow_html=True)
 
+# --- ViT Prediction ---
 with col_v:
     st.markdown("<div class='model-box'>", unsafe_allow_html=True)
     st.markdown("<div class='model-title'>🤖 ViT Multimodal</div>", unsafe_allow_html=True)
-    run_model(vit_model, "ViT", "vit_results")
-    render_results(st.session_state.vit_results)
+    
+    if st.button("🔮 Predict ViT", type="primary"):
+        if not (rgb_file or ms_file or hs_file):
+            st.warning("⚠️ Please upload at least one image.")
+        else:
+            with st.spinner("Processing ViT..."):
+                res_vit = predict_multimodal(vit_model, rgb_file, ms_file, hs_file)
+            
+            st.markdown(
+                f"""
+                <div class="result-box">
+                    <div class="pred-title">Input: {res_vit['modalities']}</div>
+                    🌱 <b>Prediction:</b> {res_vit['prediction']}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            plot_prob_bar(res_vit["prob"])
     st.markdown("</div>", unsafe_allow_html=True)
