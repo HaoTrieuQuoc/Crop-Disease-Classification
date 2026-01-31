@@ -10,7 +10,7 @@ from model_definitions import MultiModalNet
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
-    page_title="Multimodal Crop Disease Classification",
+    page_title="Multimodel Crop Disease Classification",
     layout="wide"
 )
 
@@ -54,7 +54,7 @@ IMG_SIZE = 224
 HS_IN_CH = 101
 MS_IN_CH = 5
 
-st.title("Multimodal Crop Disease Classification")
+st.title("Multimodel Crop Disease Classification")
 
 # ================= SESSION STATE =================
 if "resnet_result" not in st.session_state:
@@ -178,7 +178,7 @@ def plot_prob_bar(prob_dict):
     st.altair_chart((bar + text), use_container_width=True)
 
 # ================= INPUT =================
-st.subheader("Upload Images (Single Sample)")
+st.subheader("Upload Images ")
 
 col1, col2, col3 = st.columns(3)
 
@@ -197,7 +197,7 @@ col_r, col_v = st.columns(2)
 # --- ResNet Prediction ---
 with col_r:
     st.markdown("<div class='model-box'>", unsafe_allow_html=True)
-    st.markdown("<div class='model-title'>ResNet Multimodal</div>", unsafe_allow_html=True)
+    st.markdown("<div class='model-title'>ResNet Multimodel</div>", unsafe_allow_html=True)
     
     if st.button("Predict ResNet", type="primary"):
         if not (rgb_file or ms_file or hs_file):
@@ -224,7 +224,7 @@ with col_r:
 # --- ViT Prediction ---
 with col_v:
     st.markdown("<div class='model-box'>", unsafe_allow_html=True)
-    st.markdown("<div class='model-title'>ViT Multimodal</div>", unsafe_allow_html=True)
+    st.markdown("<div class='model-title'>ViT Multimodel</div>", unsafe_allow_html=True)
     
     if st.button("Predict ViT", type="primary"):
         if not (rgb_file or ms_file or hs_file):
